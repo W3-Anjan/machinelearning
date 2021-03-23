@@ -140,12 +140,13 @@ def main():
     plt.show() # this will show the plot
 
 
-    #Calculate correlations among attribute combinations
-    housing_df["rooms_per_household"] = housing_df["total_rooms"]/housing_df["households"]
-    housing_df["bedrooms_per_room"] = housing_df["total_bedrooms"]/housing_df["total_rooms"]
-    housing_df["population_per_household"]=housing_df["population"]/housing_df["households"]
+    #Calculate correlations among manually attribute combinations
+    # In the below we have done attribute combination with custom transformer
+    #housing_df["rooms_per_household"] = housing_df["total_rooms"]/housing_df["households"]
+    #housing_df["bedrooms_per_room"] = housing_df["total_bedrooms"]/housing_df["total_rooms"]
+    #housing_df["population_per_household"]=housing_df["population"]/housing_df["households"]
 
-    corr_matrix = housing_df.corr()
+    #corr_matrix = housing_df.corr()
     #print(corr_matrix["median_house_value"].sort_values(ascending=False))
 
     # Data Prepare
@@ -166,13 +167,14 @@ def main():
     #The imputer has simply computed the median of each attribute and stored the result
     # in its statistics_ instance variable.
     imputer.fit(housing_num)
-    print(housing_num.median().values)
+    #print(housing_num.median().values)
 
     # train data with numerical attributes
     X = imputer.transform(housing_num)
     housing_tr = pd.DataFrame(X, columns=housing_num.columns)
 
     # handling text and categorical attributes
+    # Data transform
     encoder = LabelEncoder()
     housing_cat = housing_predictors["ocean_proximity"]
     housing_cat_encoded = encoder.fit_transform(housing_cat)
@@ -182,15 +184,17 @@ def main():
     housing_cat_1hot = encoder.fit_transform(housing_cat_encoded.reshape(-1, 1))
     #print(housing_cat_1hot.toarray())
 
-    # This will do the 2 upper tasks in a single time
+    # This will do the 2 upper tasks of transforms in a single time
     encoder = LabelBinarizer()
     housing_cat_1hot = encoder.fit_transform(housing_cat)
-    print(housing_cat_1hot)
+    #print(housing_cat_1hot)
 
-    # Custom transformers
+    # Custom transformers to automatically combine the attributes
     attr_adder = CombinedAttributesAdder(add_bedrooms_per_room=False)
     housing_extra_attribs = attr_adder.transform(housing_df.values)
+    #np.set_printoptions(threshold=np.inf)
     print(housing_extra_attribs)
+
 
 if __name__== "__main__":
     main()
