@@ -4,12 +4,37 @@ from six.moves import urllib
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
-from sklearn.model_selection import train_test_split
 from sklearn.model_selection import StratifiedShuffleSplit
+from sklearn.impute import SimpleImputer
+from sklearn.preprocessing import LabelEncoder
+from sklearn.preprocessing import OneHotEncoder
+from sklearn.preprocessing import LabelBinarizer
+from sklearn.base import BaseEstimator, TransformerMixin
 
 DOWNLOAD_ROOT = "https://raw.githubusercontent.com/ageron/handson-ml/master/"
 HOUSING_PATH = "datasets/housing"
 HOUSING_URL = DOWNLOAD_ROOT + HOUSING_PATH + "/housing.tgz"
+
+rooms_ix, bedrooms_ix, population_ix, household_ix = 3, 4, 5, 6
+class CombinedAttributesAdder(BaseEstimator, TransformerMixin):
+
+    def __init__(self, add_bedrooms_per_room=True):  # no *args or **kargs
+        self.add_bedrooms_per_room = add_bedrooms_per_room
+
+    def fit(self, X, y=None):
+        return self  # nothing else to do
+
+    def transform(self, X, y=None):
+        rooms_per_household = X[:, rooms_ix] / X[:, household_ix]
+
+        population_per_household = X[:, population_ix] / X[:, household_ix]
+        if self.add_bedrooms_per_room:
+            bedrooms_per_room = X[:, bedrooms_ix] / X[:, rooms_ix]
+            return np.c_[X, rooms_per_household, population_per_household,
+                         bedrooms_per_room]
+        else:
+            return np.c_[X, rooms_per_household, population_per_household]
+
 
 
 class DataAnalysis():
@@ -88,7 +113,7 @@ def main():
         strat_test_set = housing_df.loc[test_index]
         
     for set in (strat_train_set, strat_test_set):
-        set.drop(["income_cat"], axis=1, inplace=True)
+        set.drop(["income_cat"], axis=1, inplace=True) # The drop() function is used to drop specified labels from rows or columns.
 
 
     #display scatter plot
@@ -112,11 +137,60 @@ def main():
     # Colorbar
     cbar = plt.colorbar()
     cbar.set_label('Median House Value', fontsize=16)
-    plt.show()
+    plt.show() # this will show the plot
 
 
+    #Calculate correlations among attribute combinations
+    housing_df["rooms_per_household"] = housing_df["total_rooms"]/housing_df["households"]
+    housing_df["bedrooms_per_room"] = housing_df["total_bedrooms"]/housing_df["total_rooms"]
+    housing_df["population_per_household"]=housing_df["population"]/housing_df["households"]
 
+    corr_matrix = housing_df.corr()
+    #print(corr_matrix["median_house_value"].sort_values(ascending=False))
 
+    # Data Prepare
+    # drop the Label variable and keep the predictors/ features variables
+    # Since we are predicting the median house value so we will drop the attribute as it will be treated as Label
+    housing_predictors = strat_train_set.drop("median_house_value", axis=1) #axis =1 represents column
+    # label is the data that we want to predict based on other attributes
+    housing_labels = strat_train_set["median_house_value"].copy()
+
+    #Data Cleaning
+    # You noticed earlier that the total_bedrooms
+    # attribute has some missing values, so let’s fix this.
+    imputer = SimpleImputer(strategy='mean')
+
+    #Since the median can only be calculated on numerical attributes
+    #So we need to create a copy of the data without ocean proximity text attribute
+    housing_num = housing_predictors.drop("ocean_proximity", axis=1)
+    #The imputer has simply computed the median of each attribute and stored the result
+    # in its statistics_ instance variable.
+    imputer.fit(housing_num)
+    print(housing_num.median().values)
+
+    # train data with numerical attributes
+    X = imputer.transform(housing_num)
+    housing_tr = pd.DataFrame(X, columns=housing_num.columns)
+
+    # handling text and categorical attributes
+    encoder = LabelEncoder()
+    housing_cat = housing_predictors["ocean_proximity"]
+    housing_cat_encoded = encoder.fit_transform(housing_cat)
+    #print(housing_cat_encoded)
+
+    encoder = OneHotEncoder()
+    housing_cat_1hot = encoder.fit_transform(housing_cat_encoded.reshape(-1, 1))
+    #print(housing_cat_1hot.toarray())
+
+    # This will do the 2 upper tasks in a single time
+    encoder = LabelBinarizer()
+    housing_cat_1hot = encoder.fit_transform(housing_cat)
+    print(housing_cat_1hot)
+
+    # Custom transformers
+    attr_adder = CombinedAttributesAdder(add_bedrooms_per_room=False)
+    housing_extra_attribs = attr_adder.transform(housing_df.values)
+    print(housing_extra_attribs)
 
 if __name__== "__main__":
     main()
