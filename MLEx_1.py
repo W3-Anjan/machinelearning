@@ -16,6 +16,7 @@ from sklearn.pipeline import FeatureUnion
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_squared_error
 from sklearn.tree import DecisionTreeRegressor
+from sklearn.model_selection import cross_val_score
 
 DOWNLOAD_ROOT = "https://raw.githubusercontent.com/ageron/handson-ml/master/"
 HOUSING_PATH = "datasets/housing"
@@ -97,6 +98,11 @@ class DataAnalysis():
         test_indices = shuffled_indices[:test_set_size]
         train_indices = shuffled_indices[test_set_size:]
         return data.iloc[train_indices], data.iloc[test_indices]
+
+    def display_scores(self, scores):
+        print("Scores:", scores)
+        print("Mean:", scores.mean())
+        print("Standard deviation:", scores.std())
 
 
 def main():
@@ -292,7 +298,7 @@ def main():
     lin_reg = LinearRegression()
     lin_reg.fit(housing_prepared, housing_labels)
     
-    # calculate RMSE
+    # calculate Root Mean Square Error (RMSE)
     housing_predictions = lin_reg.predict(housing_prepared)
     lin_mse = mean_squared_error(housing_labels, housing_predictions)
     lin_rmse = np.sqrt(lin_mse)
@@ -314,6 +320,13 @@ def main():
     # so a typical prediction error of $0 is not very satisfying.
     # it is much more likely that the model has badly overfit the data.
     print("RMSE:\t\t", tree_rmse)
+
+    # cross validation with small train data
+    # create 10 fold of train data
+    scores = cross_val_score(tree_reg, housing_prepared, housing_labels,
+                             scoring="neg_mean_squared_error", cv=10)
+    tree_rmse_scores = np.sqrt(-scores)
+    ml.display_scores(tree_rmse_scores)
 
 
 
